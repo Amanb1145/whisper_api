@@ -6,6 +6,7 @@ from rest_framework import status
 from .tasks import process_audio
 from django.conf import settings
 import requests
+import uuid
 
 class ProcessAudioView(APIView):
     def post(self, request):
@@ -57,9 +58,12 @@ class ExtractAudioView(APIView):
                 with open(video_file_path, 'wb') as f:
                     f.write(video_content)
                 
-                # Extract audio using ffmpeg
-                audio_file_name = os.path.splitext(video_file_name)[0] + '.mp3'
+                # Generate a unique identifier for the audio file
+                audio_file_uuid = str(uuid.uuid4())
+                audio_file_name = f'{audio_file_uuid}.mp3'
                 audio_file_path = os.path.join(temp_dir, audio_file_name)
+                
+                # Extract audio using ffmpeg
                 command = f'ffmpeg -i {video_file_path} -q:a 0 -map a {audio_file_path}'
                 os.system(command)
                 
@@ -69,11 +73,12 @@ class ExtractAudioView(APIView):
                     audio_file_url = request.build_absolute_uri(
                         settings.MEDIA_URL + os.path.relpath(audio_file_path, settings.MEDIA_ROOT)
                     )
-                    # If you want to return audio URL with the base URL
-                    base_url = 'https://service.video.wiki'  # Replace this with your base URL
-                    audio_file_url_with_base = os.path.join(base_url, audio_file_url[1:])
-                    return Response({'audio_file_url': audio_file_url_with_base}, status=status.HTTP_200_OK)
+                    # Remove the saved video file
+                    os.remove(video_file_path)
+                    return Response({'audio_file_url': audio_file_url}, status=status.HTTP_200_OK)
                 else:
+                    # Remove the saved video file if audio extraction fails
+                    os.remove(video_file_path)
                     return Response({'error': 'Failed to extract audio'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
