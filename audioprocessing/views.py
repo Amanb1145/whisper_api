@@ -11,6 +11,7 @@ import uuid
 class ProcessAudioView(APIView):
     def post(self, request):
         if request.FILES.get('audio'):
+            # If audio file is uploaded
             audio_file = request.FILES['audio']
             
             # Save the uploaded file temporarily
@@ -27,8 +28,33 @@ class ProcessAudioView(APIView):
             task = process_audio.delay(audio_file_path)
             
             return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
+        elif 'audio_url' in request.data:
+            # If audio URL is provided
+            audio_url = request.data['audio_url']
+            
+            try:
+                # Download the audio from the provided URL
+                response = requests.get(audio_url)
+                response.raise_for_status()  # Raise an error for non-200 responses
+                audio_content = response.content
+                
+                # Save the downloaded audio temporarily
+                temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+                if not os.path.exists(temp_dir):
+                    os.makedirs(temp_dir)
+                audio_file_name = os.path.basename(audio_url)
+                audio_file_path = os.path.join(temp_dir, audio_file_name)
+                with open(audio_file_path, 'wb') as f:
+                    f.write(audio_content)
+                
+                # Call Celery task to process the audio file asynchronously
+                task = process_audio.delay(audio_file_path)
+                
+                return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'error': 'Please provide an audio file.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Please provide an audio file or audio URL.'}, status=status.HTTP_400_BAD_REQUEST)
 
 class TaskStatusView(APIView):
     def get(self, request, task_id):
