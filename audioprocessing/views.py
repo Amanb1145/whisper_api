@@ -92,3 +92,12 @@ class ExtractAudioView(APIView):
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'error': 'Please provide a video URL'}, status=status.HTTP_400_BAD_REQUEST)
+
+class ExtractTaskStatusView(APIView):
+    def get(self, request, task_id):
+        task = extract_audio.AsyncResult(task_id)
+        if task.state == 'SUCCESS':
+            result = task.get()
+            return Response(result)
+        else:
+            return Response({'status': task.state})
