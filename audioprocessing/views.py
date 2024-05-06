@@ -64,8 +64,14 @@ class ExtractAudioView(APIView):
                 
                 # Check if the audio file was created
                 if os.path.exists(audio_file_path):
-                    # Return the path to the extracted audio file
-                    return Response({'audio_file': audio_file_path}, status=status.HTTP_200_OK)
+                    # Construct the URL for the extracted audio file
+                    audio_file_url = request.build_absolute_uri(
+                        settings.MEDIA_URL + os.path.relpath(audio_file_path, settings.MEDIA_ROOT)
+                    )
+                    # If you want to return audio URL with the base URL
+                    base_url = 'https://yourbaseurl.com'  # Replace this with your base URL
+                    audio_file_url_with_base = os.path.join(base_url, audio_file_url[1:])
+                    return Response({'audio_file_url': audio_file_url_with_base}, status=status.HTTP_200_OK)
                 else:
                     return Response({'error': 'Failed to extract audio'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             except Exception as e:
