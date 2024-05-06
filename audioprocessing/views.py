@@ -3,7 +3,7 @@ import os
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .tasks import process_audio
+from .tasks import process_audio, extract_audio
 from django.conf import settings
 import requests
 import uuid
@@ -84,32 +84,10 @@ class ExtractAudioView(APIView):
                 with open(video_file_path, 'wb') as f:
                     f.write(video_content)
                 
-                # Generate a unique identifier for the audio file
-                audio_file_uuid = str(uuid.uuid4())
-                audio_file_name = f'{audio_file_uuid}.mp3'
-                audio_file_path = os.path.join(temp_dir, audio_file_name)
+                # Call Celery task to extract audio asynchronously
+                task = extract_audio.delay(video_file_path)
                 
-                # Extract audio using ffmpeg
-                command = f'ffmpeg -i {video_file_path} -q:a 0 -map a {audio_file_path}'
-                os.system(command)
-                
-                # Check if the audio file was created
-                if os.path.exists(audio_file_path):
-                    # Construct the URL for the extracted audio file
-                    audio_file_url = request.build_absolute_uri(
-                        settings.MEDIA_URL + os.path.relpath(audio_file_path, settings.MEDIA_ROOT)
-                    )
-                    # Replace 'http' with 'https'
-                    audio_file_url = audio_file_url.replace('http://', 'https://')
-                    
-                    # Remove the saved video file
-                    os.remove(video_file_path)
-                    
-                    return Response({'audio_file_url': audio_file_url}, status=status.HTTP_200_OK)
-                else:
-                    # Remove the saved video file if audio extraction fails
-                    os.remove(video_file_path)
-                    return Response({'error': 'Failed to extract audio'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
