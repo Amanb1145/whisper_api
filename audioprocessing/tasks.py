@@ -1,6 +1,7 @@
 # tasks.py
 from celery import shared_task, current_app
 import whisper
+import os
 
 # Create a Celery instance
 app = current_app
@@ -24,7 +25,10 @@ def process_audio(self, audio_file_path):
         # Decode the audio
         options = whisper.DecodingOptions()
         result = whisper.decode(model, mel, options)
-        
+
+        # Remove the saved audio file
+        os.remove(audio_file_path)
+                    
         # Return the language and recognized text
         return {
             'language': language,
