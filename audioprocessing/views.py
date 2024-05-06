@@ -58,8 +58,9 @@ class ExtractAudioView(APIView):
                     f.write(video_content)
                 
                 # Extract audio using ffmpeg
-                audio_file_path = os.path.join(temp_dir, os.path.splitext(video_file_name)[0] + '.mp3')
-                command = f'ffmpeg -i {video_file_path} -vn -acodec copy {audio_file_path}'
+                audio_file_name = os.path.splitext(video_file_name)[0] + '.mp3'
+                audio_file_path = os.path.join(temp_dir, audio_file_name)
+                command = f'ffmpeg -i {video_file_path} -q:a 0 -map a {audio_file_path}'
                 os.system(command)
                 
                 # Check if the audio file was created
@@ -70,6 +71,22 @@ class ExtractAudioView(APIView):
                     )
                     # If you want to return audio URL with the base URL
                     base_url = 'https://yourbaseurl.com'  # Replace this with your base URL
+                    audio_file_url_with_base = os.path.join(base_url, audio_file_url[1:])
+                    return Response({'audio_file_url': audio_file_url_with_base}, status=status.HTTP_200_OK)
+                else:
+                    return Response({'error': 'Failed to extract audio'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'error': 'Please provide a video URL'}, status=status.HTTP_400_BAD_REQUEST)
+                # Check if the audio file was created
+                if os.path.exists(audio_file_path):
+                    # Construct the URL for the extracted audio file
+                    audio_file_url = request.build_absolute_uri(
+                        settings.MEDIA_URL + os.path.relpath(audio_file_path, settings.MEDIA_ROOT)
+                    )
+                    # If you want to return audio URL with the base URL
+                    base_url = 'https://service.ai.video.wiki'  # Replace this with your base URL
                     audio_file_url_with_base = os.path.join(base_url, audio_file_url[1:])
                     return Response({'audio_file_url': audio_file_url_with_base}, status=status.HTTP_200_OK)
                 else:
