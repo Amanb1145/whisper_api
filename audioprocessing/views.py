@@ -22,7 +22,7 @@ class ProcessAudioView(APIView):
                     f.write(chunk)
             
             # Call Celery task to process the audio file asynchronously
-            task = process_audio_file.delay(audio_file_path)
+            task = process_audio.delay(audio_file_path)
             
             return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
         else:
