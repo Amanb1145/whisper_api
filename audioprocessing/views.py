@@ -73,8 +73,12 @@ class ExtractAudioView(APIView):
                     audio_file_url = request.build_absolute_uri(
                         settings.MEDIA_URL + os.path.relpath(audio_file_path, settings.MEDIA_ROOT)
                     )
+                    # Replace 'http' with 'https'
+                    audio_file_url = audio_file_url.replace('http://', 'https://')
+                    
                     # Remove the saved video file
                     os.remove(video_file_path)
+                    
                     return Response({'audio_file_url': audio_file_url}, status=status.HTTP_200_OK)
                 else:
                     # Remove the saved video file if audio extraction fails
