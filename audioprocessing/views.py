@@ -8,7 +8,7 @@ class ProcessAudioView(APIView):
     def post(self, request):
         if request.FILES.get('audio'):
             audio_file = request.FILES['audio']
-          print(audio_file.temporary_file_path(),"abc")
+            print(audio_file.temporary_file_path(),"abc")
             task = process_audio.delay(audio_file.temporary_file_path())
             return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
         else:
