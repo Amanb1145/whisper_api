@@ -75,7 +75,7 @@ def extract_audio(video_file_path):
             audio_file_url = os.path.join(settings.MEDIA_URL, 'temp', audio_file_name)
             # Replace 'http' with 'https'
             audio_file_url = audio_file_url.replace('http://', 'https://')
-            return {'audio_file_url': audio_file_url}
+            return {'audio_file_url': "https://service.ai.video.wiki/" + audio_file_url}
         else:
             return {'error': 'Failed to extract audio'}
     except Exception as e:
