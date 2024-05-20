@@ -8,6 +8,7 @@ from django.conf import settings
 import requests
 import uuid
 import urllib.parse
+from requests.utils import requote_uri
 
 
 class ProcessAudioView(APIView):
@@ -98,42 +99,48 @@ class TaskStatusView(APIView):
 class ExtractAudioView(APIView):
     def post(self, request):
         video_url = request.data.get('video_url')
+
         if video_url:
             try:
                 # Decode URL to handle special characters
                 video_url = urllib.parse.unquote(video_url)
-                
+
                 # Set headers including User-Agent
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
                 }
-                
+
+                # Encode the URL again to handle special characters
+                video_url = requote_uri(video_url)
+
                 # Download the video from the provided URL
                 response = requests.get(video_url, headers=headers)
                 response.raise_for_status()  # Raise an error for non-200 responses
+
                 video_content = response.content
-                
+
                 # Save the downloaded video temporarily
                 temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
                 if not os.path.exists(temp_dir):
                     os.makedirs(temp_dir)
-                
+
                 # Extract filename from URL
                 url_path = urllib.parse.urlparse(video_url).path
                 video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp4'
                 video_file_path = os.path.join(temp_dir, video_file_name)
-                
+
                 with open(video_file_path, 'wb') as f:
                     f.write(video_content)
-                
+
                 # Call Celery task to extract audio asynchronously
                 task = extract_audio.delay(video_file_path)
-                
                 return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
+
             except requests.exceptions.RequestException as e:
                 return Response({'error': f'Request error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
         else:
             return Response({'error': 'Please provide a video URL'}, status=status.HTTP_400_BAD_REQUEST)
 
