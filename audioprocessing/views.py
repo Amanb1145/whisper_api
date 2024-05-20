@@ -101,35 +101,25 @@ class TaskStatusView(APIView):
 class ExtractAudioView(APIView):
     def post(self, request):
         video_url = request.data.get('video_url')
-
         if video_url:
             try:
-                # Check if the URL starts with the specified base URL
+                temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+                if not os.path.exists(temp_dir):
+                    os.makedirs(temp_dir)
+
                 if video_url.startswith(BASE_URL):
                     # Download using wget
-                    encoded_url = urllib.parse.quote(video_url, safe='/:?=&')
-                    temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
-                    if not os.path.exists(temp_dir):
-                        os.makedirs(temp_dir)
-
-                    url_path = urllib.parse.urlparse(video_url).path
-                    video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp3'
-                    video_file_path = os.path.join(temp_dir, video_file_name)
-
                     try:
-                        subprocess.run(["wget", "-O", video_file_path, encoded_url], check=True)
+                        # Create a valid filename
+                        video_file_name = f'video_{uuid.uuid4()}.mp4'
+                        video_file_path = os.path.join(temp_dir, video_file_name)
+
+                        subprocess.run(["wget", "-O", video_file_path, video_url], check=True)
                         print("File downloaded successfully!")
                     except subprocess.CalledProcessError as e:
                         return Response({'error': f'Error downloading the file: {e}'}, status=status.HTTP_400_BAD_REQUEST)
-
-                    # Call Celery task to extract audio asynchronously
-                    task = extract_audio.delay(video_file_path)
-                    return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
-
                 else:
-                    # Decode URL to handle special characters
-                    video_url = urllib.parse.unquote(video_url)
-
+                    # Download using requests
                     # Set headers including User-Agent
                     headers = {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
@@ -144,11 +134,7 @@ class ExtractAudioView(APIView):
 
                     video_content = response.content
 
-                    # Save the downloaded video temporarily
-                    temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
-                    if not os.path.exists(temp_dir):
-                        os.makedirs(temp_dir)
-
+                    # Create a valid filename
                     url_path = urllib.parse.urlparse(video_url).path
                     video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp4'
                     video_file_path = os.path.join(temp_dir, video_file_name)
@@ -156,9 +142,9 @@ class ExtractAudioView(APIView):
                     with open(video_file_path, 'wb') as f:
                         f.write(video_content)
 
-                    # Call Celery task to extract audio asynchronously
-                    task = extract_audio.delay(video_file_path)
-                    return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
+                # Call Celery task to extract audio asynchronously
+                task = extract_audio.delay(video_file_path)
+                return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
 
             except requests.exceptions.RequestException as e:
                 return Response({'error': f'Request error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
