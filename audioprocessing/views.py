@@ -102,14 +102,16 @@ class ExtractAudioView(APIView):
             try:
                 # Decode URL to handle special characters
                 video_url = urllib.parse.unquote(video_url)
-                print(video_url, "1")
+                
+                # Set headers including User-Agent
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                }
                 
                 # Download the video from the provided URL
-                response = requests.get(video_url)
-                print(response, "2")
+                response = requests.get(video_url, headers=headers)
                 response.raise_for_status()  # Raise an error for non-200 responses
                 video_content = response.content
-                print(video_content, "3")
                 
                 # Save the downloaded video temporarily
                 temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
@@ -120,7 +122,6 @@ class ExtractAudioView(APIView):
                 url_path = urllib.parse.urlparse(video_url).path
                 video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp4'
                 video_file_path = os.path.join(temp_dir, video_file_name)
-                print(url_path, video_file_name, video_file_path)
                 
                 with open(video_file_path, 'wb') as f:
                     f.write(video_content)
@@ -135,6 +136,7 @@ class ExtractAudioView(APIView):
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'error': 'Please provide a video URL'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ExtractTaskStatusView(APIView):
     def get(self, request, task_id):
