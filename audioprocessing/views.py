@@ -104,7 +104,7 @@ class ExtractAudioView(APIView):
             try:
                 # Decode URL to handle special characters
                 video_url = urllib.parse.unquote(video_url)
-
+                print(video_url, "1")
                 # Set headers including User-Agent
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
@@ -112,9 +112,10 @@ class ExtractAudioView(APIView):
 
                 # Encode the URL again to handle special characters
                 video_url = requote_uri(video_url)
-
+                print(video_url, "2")
                 # Download the video from the provided URL
                 response = requests.get(video_url, headers=headers)
+                print(response, "3")
                 response.raise_for_status()  # Raise an error for non-200 responses
 
                 video_content = response.content
