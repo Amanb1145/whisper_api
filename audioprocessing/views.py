@@ -102,11 +102,14 @@ class ExtractAudioView(APIView):
             try:
                 # Decode URL to handle special characters
                 video_url = urllib.parse.unquote(video_url)
+                print(video_url, "1")
                 
                 # Download the video from the provided URL
                 response = requests.get(video_url)
+                print(response, "2")
                 response.raise_for_status()  # Raise an error for non-200 responses
                 video_content = response.content
+                print(video_content, "3")
                 
                 # Save the downloaded video temporarily
                 temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
@@ -117,6 +120,7 @@ class ExtractAudioView(APIView):
                 url_path = urllib.parse.urlparse(video_url).path
                 video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp4'
                 video_file_path = os.path.join(temp_dir, video_file_name)
+                print(url_path, video_file_name, video_file_path)
                 
                 with open(video_file_path, 'wb') as f:
                     f.write(video_content)
