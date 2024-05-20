@@ -7,6 +7,8 @@ from .tasks import process_audio, extract_audio
 from django.conf import settings
 import requests
 import uuid
+import urllib.parse
+
 
 class ProcessAudioView(APIView):
     def post(self, request):
@@ -65,11 +67,42 @@ class TaskStatusView(APIView):
         else:
             return Response({'status': task.state})
 
+# class ExtractAudioView(APIView):
+#     def post(self, request):
+#         video_url = request.data.get('video_url')
+#         if video_url:
+#             try:
+#                 # Download the video from the provided URL
+#                 response = requests.get(video_url)
+#                 response.raise_for_status()  # Raise an error for non-200 responses
+#                 video_content = response.content
+                
+#                 # Save the downloaded video temporarily
+#                 temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+#                 if not os.path.exists(temp_dir):
+#                     os.makedirs(temp_dir)
+#                 video_file_name = os.path.basename(video_url)
+#                 video_file_path = os.path.join(temp_dir, video_file_name)
+#                 with open(video_file_path, 'wb') as f:
+#                     f.write(video_content)
+                
+#                 # Call Celery task to extract audio asynchronously
+#                 task = extract_audio.delay(video_file_path)
+                
+#                 return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
+#             except Exception as e:
+#                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+#         else:
+#             return Response({'error': 'Please provide a video URL'}, status=status.HTTP_400_BAD_REQUEST)
+
 class ExtractAudioView(APIView):
     def post(self, request):
         video_url = request.data.get('video_url')
         if video_url:
             try:
+                # Decode URL to handle special characters
+                video_url = urllib.parse.unquote(video_url)
+                
                 # Download the video from the provided URL
                 response = requests.get(video_url)
                 response.raise_for_status()  # Raise an error for non-200 responses
@@ -79,8 +112,12 @@ class ExtractAudioView(APIView):
                 temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
                 if not os.path.exists(temp_dir):
                     os.makedirs(temp_dir)
-                video_file_name = os.path.basename(video_url)
+                
+                # Extract filename from URL
+                url_path = urllib.parse.urlparse(video_url).path
+                video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp4'
                 video_file_path = os.path.join(temp_dir, video_file_name)
+                
                 with open(video_file_path, 'wb') as f:
                     f.write(video_content)
                 
@@ -88,6 +125,8 @@ class ExtractAudioView(APIView):
                 task = extract_audio.delay(video_file_path)
                 
                 return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
+            except requests.exceptions.RequestException as e:
+                return Response({'error': f'Request error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
