@@ -57,6 +57,30 @@ def get_task_status(self, task_id):
         }
 
 
+# @shared_task
+# def extract_audio(video_file_path):
+#     try:
+#         # Generate a unique identifier for the audio file
+#         audio_file_uuid = str(uuid.uuid4())
+#         audio_file_name = f'{audio_file_uuid}.mp3'
+#         audio_file_path = os.path.join(settings.MEDIA_ROOT, 'temp', audio_file_name)
+        
+#         # Extract audio using ffmpeg
+#         command = f'ffmpeg -i {video_file_path} -q:a 0 -map a {audio_file_path}'
+#         os.system(command)
+        
+#         # Check if the audio file was created
+#         if os.path.exists(audio_file_path):
+#             # Construct the URL for the extracted audio file
+#             audio_file_url = os.path.join(settings.MEDIA_URL, 'temp', audio_file_name)
+#             # Replace 'http' with 'https'
+#             audio_file_url = audio_file_url.replace('http://', 'https://')
+#             return {'audio_file_url': "https://service.ai.video.wiki/" + audio_file_url}
+#         else:
+#             return {'error': 'Failed to extract audio'}
+#     except Exception as e:
+#         return {'error': str(e)}
+
 @shared_task
 def extract_audio(video_file_path):
     try:
@@ -66,7 +90,7 @@ def extract_audio(video_file_path):
         audio_file_path = os.path.join(settings.MEDIA_ROOT, 'temp', audio_file_name)
         
         # Extract audio using ffmpeg
-        command = f'ffmpeg -i {video_file_path} -q:a 0 -map a {audio_file_path}'
+        command = f'ffmpeg -i "{video_file_path}" -q:a 0 -map a "{audio_file_path}"'
         os.system(command)
         
         # Check if the audio file was created
