@@ -9,7 +9,9 @@ import requests
 import uuid
 import urllib.parse
 from requests.utils import requote_uri
+import subprocess
 
+BASE_URL = "https://firebasestorage.googleapis.com/"
 
 class ProcessAudioView(APIView):
     def post(self, request):
@@ -102,40 +104,61 @@ class ExtractAudioView(APIView):
 
         if video_url:
             try:
-                # Decode URL to handle special characters
-                video_url = urllib.parse.unquote(video_url)
-                print(video_url, "1")
-                # Set headers including User-Agent
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-                }
+                # Check if the URL starts with the specified base URL
+                if video_url.startswith(BASE_URL):
+                    # Download using wget
+                    encoded_url = urllib.parse.quote(video_url, safe='/:?=&')
+                    temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+                    if not os.path.exists(temp_dir):
+                        os.makedirs(temp_dir)
 
-                # Encode the URL again to handle special characters
-                video_url = requote_uri(video_url)
-                print(video_url, "2")
-                # Download the video from the provided URL
-                response = requests.get(video_url, headers=headers)
-                print(response, "3")
-                response.raise_for_status()  # Raise an error for non-200 responses
+                    url_path = urllib.parse.urlparse(video_url).path
+                    video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp3'
+                    video_file_path = os.path.join(temp_dir, video_file_name)
 
-                video_content = response.content
+                    try:
+                        subprocess.run(["wget", "-O", video_file_path, encoded_url], check=True)
+                        print("File downloaded successfully!")
+                    except subprocess.CalledProcessError as e:
+                        return Response({'error': f'Error downloading the file: {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Save the downloaded video temporarily
-                temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
-                if not os.path.exists(temp_dir):
-                    os.makedirs(temp_dir)
+                    # Call Celery task to extract audio asynchronously
+                    task = extract_audio.delay(video_file_path)
+                    return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
 
-                # Extract filename from URL
-                url_path = urllib.parse.urlparse(video_url).path
-                video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp4'
-                video_file_path = os.path.join(temp_dir, video_file_name)
+                else:
+                    # Decode URL to handle special characters
+                    video_url = urllib.parse.unquote(video_url)
 
-                with open(video_file_path, 'wb') as f:
-                    f.write(video_content)
+                    # Set headers including User-Agent
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                    }
 
-                # Call Celery task to extract audio asynchronously
-                task = extract_audio.delay(video_file_path)
-                return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
+                    # Encode the URL again to handle special characters
+                    video_url = requote_uri(video_url)
+
+                    # Download the video from the provided URL
+                    response = requests.get(video_url, headers=headers)
+                    response.raise_for_status()  # Raise an error for non-200 responses
+
+                    video_content = response.content
+
+                    # Save the downloaded video temporarily
+                    temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+                    if not os.path.exists(temp_dir):
+                        os.makedirs(temp_dir)
+
+                    url_path = urllib.parse.urlparse(video_url).path
+                    video_file_name = os.path.basename(url_path) or f'video_{uuid.uuid4()}.mp4'
+                    video_file_path = os.path.join(temp_dir, video_file_name)
+
+                    with open(video_file_path, 'wb') as f:
+                        f.write(video_content)
+
+                    # Call Celery task to extract audio asynchronously
+                    task = extract_audio.delay(video_file_path)
+                    return Response({'task_id': task.id}, status=status.HTTP_202_ACCEPTED)
 
             except requests.exceptions.RequestException as e:
                 return Response({'error': f'Request error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
