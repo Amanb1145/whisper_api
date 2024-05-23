@@ -1,9 +1,11 @@
 # tasks.py
 from celery import shared_task, current_app
-import whisper
+# import whisper
+import whisper_timestamped as whisper
 import os
 import uuid
 from django.conf import settings
+import json
 
 # Create a Celery instance
 app = current_app
@@ -13,7 +15,8 @@ app = current_app
 def process_audio(self, audio_file_path):
     try:
         # Load the pre-trained model
-        model = whisper.load_model("base")
+        # model = whisper.load_model("base")
+        model = whisper.load_model("tiny", device="cpu")
         
         # Load and preprocess the audio file
         audio = whisper.load_audio(audio_file_path)
@@ -25,8 +28,10 @@ def process_audio(self, audio_file_path):
         language = max(probs, key=probs.get)
         
         # Decode the audio
-        options = whisper.DecodingOptions()
-        result = whisper.decode(model, mel, options)
+        # options = whisper.DecodingOptions()
+        # result = whisper.decode(model, mel, options)
+
+        result = whisper.transcribe(model, audio, language=language)
 
         # Remove the saved audio file
         os.remove(audio_file_path)
@@ -34,7 +39,7 @@ def process_audio(self, audio_file_path):
         # Return the language and recognized text
         return {
             'language': language,
-            'text': result.text
+            'text': json.dumps(result, indent = 2, ensure_ascii = False)
         }
     except Exception as e:
         # Handle exceptions gracefully
