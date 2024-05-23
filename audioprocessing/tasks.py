@@ -43,8 +43,10 @@ def process_audio(self, audio_file_path):
         }
                     
         # Return the language and recognized text
-        # Return the response as a JSON string
-        return json.dumps(response_data, indent=2, ensure_ascii=False)
+        return {
+            'language': language,
+            'text': response_data
+        }
     except Exception as e:
         # Handle exceptions gracefully
         return {
