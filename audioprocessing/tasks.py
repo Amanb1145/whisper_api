@@ -35,11 +35,17 @@ def process_audio(self, audio_file_path):
 
         # Remove the saved audio file
         os.remove(audio_file_path)
+        
+        # Prepare the response data
+        response_data = {
+            'language': language,
+            'text': result  # Leave the result as a dictionary for now
+        }
                     
         # Return the language and recognized text
         return {
             'language': language,
-            'text': json.dumps(result, indent = 2, ensure_ascii = False)
+            'text': json.dumps(response_data, indent=2, ensure_ascii=False)
         }
     except Exception as e:
         # Handle exceptions gracefully
